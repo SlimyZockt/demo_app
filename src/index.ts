@@ -2,6 +2,7 @@ import { split_fqdn } from "./split_fqdn";
 import { get_geolocation } from "./geolocation";
 import inquirer from "inquirer";
 import { Question } from "inquirer";
+import { z } from "zod";
 
 export const app = (async () => {
 
@@ -13,25 +14,26 @@ export const app = (async () => {
     });
 
     const get_url = async () => {
-        const url_input = await inquirer.prompt<{ get_url: string }>({
+        const url_input = await inquirer.prompt<{ url: string }>({
             message: "input a url (https://test.example.com):",
             type: "input",
-            name: "get_url",
+            name: "url",
         });
-        const url = (async (): Promise<URL> => new URL(url_input.get_url))()
-            .then((data: URL) => data)
-            .catch((_) => {
-                console.log(
-                    "The specified URL is invalid. Enter a URL that is compatible with the js URL interface"
-                );
-                get_url();
-            }
-            );
+        const url_schema = z.string().url()
 
-        return url as Promise<URL>
+        const url = url_schema.safeParse(url_input.url)
+
+        if (url.success) {
+            return new URL(url.data)
+        }
+
     }
 
-    const url = await get_url()
+    let url = await get_url()
+    while (url === undefined) {
+        console.log("The specified URL is invalid. Enter a URL that is compatible with the js URL interface.");
+        url = await get_url()
+    }
 
     if (demo.run_demo === "split fqdn") {
         console.log(
@@ -40,11 +42,9 @@ export const app = (async () => {
     }
 
     if (demo.run_demo === "get geolocation from fqdn") {
-        console.log(
-           await get_geolocation(url, 'de')
+        console.table(
+           [await get_geolocation(url, 'de')]
         );
     }
 
 })();
-
-console.log("run");
